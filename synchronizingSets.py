@@ -1,0 +1,5 @@
+program         = ['tc_EOF']
+identifierList  = ['tc_RPAREN','tc_COLON','tc_SEMICOL']
+declarations    = ['tc_FUNCTION','tc_PROCEDURE','tc_BEGIN']
+type            = ['tc_SEMICOL']
+subprogramDeclarations = ['tc_BEGIN','tc_SEMICOL']
