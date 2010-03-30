@@ -4,6 +4,7 @@
 
 #
 # -*- coding: utf-8 -*-
+import sys
 from scanner import Scanner
 from token import *
 import token
@@ -28,9 +29,12 @@ def error(classInstance,token,nonTerminal):
 class Parser:
     def __init__(self,input):
         self.scanner = Scanner(input)
-        self.currentToken = self.scanner.nextToken()
+        self.currentToken = None
         self.errors = []
         self.readTokens = []
+
+    def callersname(self):
+        return sys._getframe(2).f_code.co_name
 
     def error(self,token,message):
         self.errors.append(Error(token.lineno,token.columnno,message))
@@ -40,24 +44,31 @@ class Parser:
         pass
 
     def match(self,expectedInput):
-        self.readTokens.append((self.currentToken.lineno,self.currentToken.columnno,self.currentToken.TokenCode))
         if self.currentToken.TokenCode != expectedInput:
-            self.error(self.currentToken,'Expected %s but got %s'%(expectedInput,self.currentToken.TokenCode))
+            message = 'Expected %s but got %s while in %s'%(expectedInput,self.currentToken.TokenCode,self.callersname())
+            self.error(self.currentToken,message)
             self.recover()
         self.currentToken = self.scanner.nextToken()
 
+    def parse(self):
+        self.currentToken = self.scanner.nextToken()
+        self.parseProgram()
+        self.match('tc_EOF')
+
     def parseProgram(self):
-        self.match('tc_PROGRAM')
-        self.match('tc_ID')
-        self.match('tc_LPAREN')
-        self.parseIdentifierList()
-        self.match('tc_RPAREN')
+        self.parseProgramDefinition()
         self.match('tc_SEMICOL')
         self.parseDeclarations()
         self.parseSubprogramDeclarations()
         self.parseCompoundStatement()
         self.match('tc_DOT')
-        self.match('tc_EOF')
+
+    def parseProgramDefinition(self):
+        self.match('tc_PROGRAM')
+        self.match('tc_ID')
+        self.match('tc_LPAREN')
+        self.parseIdentifierList()
+        self.match('tc_RPAREN')
 
     def parseIdentifierList(self):
         self.match('tc_ID')
@@ -287,5 +298,5 @@ class Parser:
 
     def parseSign(self):
         # Not needed, is implemented in parseStatement, but kept here for completeness.
-        self.match('tc_ADDOP')    
+        self.match('tc_ADDOP')
 

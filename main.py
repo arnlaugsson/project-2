@@ -11,7 +11,11 @@ from parse import Parser
 def main(*args):
     # Generate our parser, with the given input
 
-    inputFile = 'pas_syntax_ok'
+    if len(sys.argv) > 1:
+        inputFile = sys.argv[1]
+    else:
+        inputFile = 'pas_syntax_ok'
+    
     filename = 'input/'+inputFile
     print '  -------------------------------'
     print '  Using input "%s"'%inputFile
@@ -21,20 +25,23 @@ def main(*args):
     parser = Parser(filename)
 
     # Start parsing!
-    parser.parseProgram()
+    parser.parse()
 
     fileHandler = open(filename)
-    pointer = 1
+    pointer = 0
 
     while True:
+        pointer += 1
         line = fileHandler.readline()
         if not line: break
         print '   %d\t|  %s'%(pointer,line),
         for error in parser.errors:
             if error.lineno == pointer:
                 error.pointPrint()
-                break
-        pointer += 1
+                # With break only the first error in the line will be displayed
+                #break
+
+
 
     print
     print '  -------------------------------'

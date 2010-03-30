@@ -17,8 +17,8 @@ previousLexPosLineCount = 0
 
 
 # *** Simple Regular expressions *************************************
-# Simple regular expressions for tokens that have no datatype and no
-# optype. These can be defined directly by saying t_NAME = r'xxx' <=
+# Simple regular expressions for tokens that have no dataType and no
+# opType. These can be defined directly by saying t_NAME = r'...' <=
 # but this prevents us from adding special notes such as dt or opType.
 
 t_tc_SEMICOL   = r';'
