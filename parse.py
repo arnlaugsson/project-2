@@ -8,6 +8,7 @@ import sys
 from scanner import Scanner
 from token import *
 import token
+from synchronizingSets import syncsets
 
 class Error:
     """ An instance of the Error class is a parser error encountered during parsing.
@@ -21,282 +22,365 @@ class Error:
     def __repr__(self):
         return 'Line %d:%d: \t%s'%(self.lineno,self.columnno,self.message)
     def pointPrint(self):
-        print "\tE  "+" "*(self.columnno-2) + "^--- " + self.message #+ " (at line %s column %s)"%(self.lineno,self.columnno)
-
-def error(classInstance,token,nonTerminal):
-    classInstance.errors.append()
+        print "\t   "+" "*(self.columnno-2) + "^--- " + self.message
 
 class Parser:
     def __init__(self,input):
-        self.scanner = Scanner(input)
-        self.currentToken = None
+        self.__scanner = Scanner(input)
+        self.__currentToken = None
+        self.__foundError = False
+        self.__errorInFunction = ''
         self.errors = []
-        self.readTokens = []
 
-    def callersname(self):
+        
+    def parse(self):
+        """
+        This is the accesible parse function.
+        """
+        self.__currentToken = self.__scanner.nextToken()
+        self.__Program()
+        self.__match('tc_EOF')
+
+    def __callersname(self):
+        # Simply returns the parent function name. Used to find the correct follow set.
         return sys._getframe(2).f_code.co_name
 
-    def error(self,token,message):
+    def __addError(self,token,message):
+        # Simply appends a new instance of the error class to the error list.
         self.errors.append(Error(token.lineno,token.columnno,message))
 
-    def recover(self):
-        # Todo: add error recovery
-        pass
+    def __recover(self):
+        # If we find a token in the follow set, we do not skip
+        skip = True
 
-    def match(self,expectedInput):
-        if self.currentToken.TokenCode != expectedInput:
-            message = 'Expected %s but got %s while in %s'%(expectedInput,self.currentToken.TokenCode,self.callersname())
-            self.error(self.currentToken,message)
-            self.recover()
-        self.currentToken = self.scanner.nextToken()
+        for tc in syncsets[self.__errorInFunction]:
+            if self.__currentToken.TokenCode != tc:
+                self.__currentToken = self.__scanner.nextToken()
+            else:
+                # Token found in sync set
+                skip = False
+                break
 
-    def parse(self):
-        self.currentToken = self.scanner.nextToken()
-        self.parseProgram()
-        self.match('tc_EOF')
+        if skip:
+            self.__currentToken = self.__scanner.nextToken()
+        
+        # Reset after recovery
+        self.__foundError = False
+        self.__errorInFunction = ''
 
-    def parseProgram(self):
-        self.parseProgramDefinition()
-        self.match('tc_SEMICOL')
-        self.parseDeclarations()
-        self.parseSubprogramDeclarations()
-        self.parseCompoundStatement()
-        self.match('tc_DOT')
+    def __match(self,expectedIn):
+        if self.__foundError: return
+        if self.__currentToken.TokenCode != expectedIn:
+            callFunc = self.__callersname()
+            recTC = self.__currentToken.TokenCode
+            message = 'Expected %s not %s while in %s'%(expectedIn[3:],recTC[3:],callFunc)
+            self.__addError(self.__currentToken,message)
+            self.__foundError = True
+            self.__errorInFunction = callFunc
 
-    def parseProgramDefinition(self):
-        self.match('tc_PROGRAM')
-        self.match('tc_ID')
-        self.match('tc_LPAREN')
-        self.parseIdentifierList()
-        self.match('tc_RPAREN')
+        self.__currentToken = self.__scanner.nextToken()
 
-    def parseIdentifierList(self):
-        self.match('tc_ID')
-        self.parseIdentifierListRest()
+    def __Program(self):
 
-    def parseIdentifierListRest(self):
-        if self.currentToken.TokenCode == 'tc_COMMA':
-            self.match('tc_COMMA')
-            self.match('tc_ID')
-            self.parseIdentifierListRest()
+        self.__ProgramDefinition()
+        if self.__foundError: self.__recover()
 
-    def parseDeclarations(self):
-        self.match('tc_VAR')
-        self.parseIdentifierList()
-        self.match('tc_COLON')
-        self.parseType()
-        self.match('tc_SEMICOL')
-        self.parseDeclarationsRest()
+        self.__match('tc_SEMICOL')
 
-    def parseDeclarationsRest(self):
-        if self.currentToken.TokenCode == 'tc_VAR':
-            self.parseDeclarations()
 
-    def parseType(self):
-        if self.currentToken.TokenCode == 'tc_ARRAY':
-            self.match('tc_ARRAY')
-            self.match('tc_LBRACKET')
-            self.match('tc_NUMBER')
-            self.match('tc_DOTDOT')
-            self.match('tc_NUMBER')
-            self.match('tc_RBRACKET')
-            self.match('tc_OF')
-        self.parseStandardType()
+        self.__Declarations()
+        if self.__foundError: self.__recover()
 
-    def parseStandardType(self):
-        if self.currentToken.TokenCode == 'tc_INTEGER':
-            self.match('tc_INTEGER')
+
+        self.__SubprogramDeclarations()
+        if self.__foundError: self.__recover()
+
+
+        self.__CompoundStatement()
+        if self.__foundError: self.__recover()
+
+        self.__match('tc_DOT')
+
+    def __ProgramDefinition(self):
+        self.__match('tc_PROGRAM')
+        self.__match('tc_ID')
+        self.__match('tc_LPAREN')
+        self.__IdentifierList()
+        if self.__foundError: self.__recover()
+        self.__match('tc_RPAREN')
+
+    def __IdentifierList(self):
+        self.__match('tc_ID')
+        self.__IdentifierListRest()
+
+    def __IdentifierListRest(self):
+        if self.__currentToken.TokenCode == 'tc_COMMA':
+            self.__match('tc_COMMA')
+            self.__match('tc_ID')
+            self.__IdentifierListRest()
+
+    def __Declarations(self):
+        self.__match('tc_VAR')
+        self.__IdentifierList()
+        if self.__foundError: self.__recover()
+        self.__match('tc_COLON')
+        self.__Type()
+        if self.__foundError: self.__recover()
+        self.__match('tc_SEMICOL')
+        self.__DeclarationsRest()
+
+    def __DeclarationsRest(self):
+        if self.__currentToken.TokenCode == 'tc_VAR':
+            self.__Declarations()
+            if self.__foundError: self.__recover()
+
+    def __Type(self):
+        if self.__currentToken.TokenCode == 'tc_ARRAY':
+            self.__match('tc_ARRAY')
+            self.__match('tc_LBRACKET')
+            self.__match('tc_NUMBER')
+            self.__match('tc_DOTDOT')
+            self.__match('tc_NUMBER')
+            self.__match('tc_RBRACKET')
+            self.__match('tc_OF')
+        self.__StandardType()
+        if self.__foundError: self.__recover()
+
+    def __StandardType(self):
+        if self.__currentToken.TokenCode == 'tc_INTEGER':
+            self.__match('tc_INTEGER')
         else:
-            self.match('tc_REAL')
+            self.__match('tc_REAL')
 
-    def parseSubprogramDeclarations(self):
-        if self.currentToken.TokenCode == 'tc_FUNCTION':
-            self.parseSubprogramDeclaration()
-            self.match('tc_SEMICOL')
-            self.parseSubprogramDeclarations()
-        elif self.currentToken.TokenCode == 'tc_PROCEDURE':
-            self.parseSubprogramDeclaration()
-            self.match('tc_SEMICOL')
-            self.parseSubprogramDeclarations()
+    def __SubprogramDeclarations(self):
+        if self.__currentToken.TokenCode == 'tc_FUNCTION':
+            self.__SubprogramDeclaration()
+            if self.__foundError: self.__recover()
+            self.__match('tc_SEMICOL')
+            self.__SubprogramDeclarations()
+            if self.__foundError: self.__recover()
+        elif self.__currentToken.TokenCode == 'tc_PROCEDURE':
+            self.__SubprogramDeclaration()
+            if self.__foundError: self.__recover()
+            self.__match('tc_SEMICOL')
+            self.__SubprogramDeclarations()
+            if self.__foundError: self.__recover()
 
-    def parseSubprogramDeclaration(self):
-        self.parseSubprogramHead()
-        self.parseDeclarations()
-        self.parseCompoundStatement()
+    def __SubprogramDeclaration(self):
+        self.__SubprogramHead()
+        if self.__foundError: self.__recover()
+        self.__Declarations()
+        if self.__foundError: self.__recover()
+        self.__CompoundStatement()
+        if self.__foundError: self.__recover()
 
-    def parseSubprogramHead(self):
-        if self.currentToken.TokenCode == 'tc_FUNCTION':
-            self.match('tc_FUNCTION')
-            self.match('tc_ID')
-            self.parseArguments()
-            self.match('tc_COLON')
-            self.parseStandardType()
-        elif self.currentToken.TokenCode == 'tc_PROCEDURE':
-            self.match('tc_PROCEDURE')
-            self.match('tc_ID')
-            self.parseArguments()
+    def __SubprogramHead(self):
+        if self.__currentToken.TokenCode == 'tc_FUNCTION':
+            self.__match('tc_FUNCTION')
+            self.__match('tc_ID')
+            self.__Arguments()
+            if self.__foundError: self.__recover()
+            self.__match('tc_COLON')
+            self.__StandardType()
+            if self.__foundError: self.__recover()
+        elif self.__currentToken.TokenCode == 'tc_PROCEDURE':
+            self.__match('tc_PROCEDURE')
+            self.__match('tc_ID')
+            self.__Arguments()
+            if self.__foundError: self.__recover()
         else:
             # Error - must be either one
             pass
-        self.match('tc_SEMICOL')
+        self.__match('tc_SEMICOL')
 
-    def parseArguments(self):
-        if self.currentToken.TokenCode == 'tc_LPAREN':
-            self.match('tc_LPAREN')
-            self.parseParameterList()
-            self.match('tc_RPAREN')
+    def __Arguments(self):
+        if self.__currentToken.TokenCode == 'tc_LPAREN':
+            self.__match('tc_LPAREN')
+            self.__ParameterList()
+            if self.__foundError: self.__recover()
+            self.__match('tc_RPAREN')
 
-    def parseParameterList(self):
-        self.parseIdentifierList()
-        self.match('tc_COLON')
-        self.parseType()
-        self.parseParameterListRest()
+    def __ParameterList(self):
+        self.__IdentifierList()
+        if self.__foundError: self.__recover()
+        self.__match('tc_COLON')
+        self.__Type()
+        if self.__foundError: self.__recover()
+        self.__ParameterListRest()
 
-    def parseParameterListRest(self):
-        if self.currentToken.TokenCode == 'tc_SEMICOL':
-            self.match('tc_SEMICOL')
-            self.parseIdentifierList()
-            self.match('tc_COLON')
-            self.parseType()
-            self.parseParameterListRest()
+    def __ParameterListRest(self):
+        if self.__currentToken.TokenCode == 'tc_SEMICOL':
+            self.__match('tc_SEMICOL')
+            self.__IdentifierList()
+            if self.__foundError: self.__recover()
+            self.__match('tc_COLON')
+            self.__Type()
+            if self.__foundError: self.__recover()
+            self.__ParameterListRest()
 
-    def parseCompoundStatement(self):
-        self.match('tc_BEGIN')
-        self.parseOptionalStatements()
-        self.match('tc_END')
+    def __CompoundStatement(self):
+        self.__match('tc_BEGIN')
+        self.__OptionalStatements()
+        if self.__foundError: self.__recover()
+        self.__match('tc_END')
 
-    def parseOptionalStatements(self):
-        if self.currentToken.TokenCode != 'tc_END':
-            self.parseStatementList()
+    def __OptionalStatements(self):
+        if self.__currentToken.TokenCode != 'tc_END':
+            self.__StatementList()
+            if self.__foundError: self.__recover()
 
-    def parseStatementList(self):
-        self.parseStatement()
-        self.parseStatementListRest()
+    def __StatementList(self):
+        self.__Statement()
+        if self.__foundError: self.__recover()
+        self.__StatementListRest()
 
-    def parseStatementListRest(self):
-        if self.currentToken.TokenCode == 'tc_SEMICOL':
-            self.match('tc_SEMICOL')
-            self.parseStatementList()
+    def __StatementListRest(self):
+        if self.__currentToken.TokenCode == 'tc_SEMICOL':
+            self.__match('tc_SEMICOL')
+            self.__StatementList()
+            if self.__foundError: self.__recover()
 
-    def parseStatement(self):
-        if self.currentToken.TokenCode == 'tc_ID':
+    def __Statement(self):
+        if self.__currentToken.TokenCode == 'tc_ID':
             # 'Procedure statement' or 'variable assign-op expression'
-            self.match('tc_ID')
-            if self.currentToken.TokenCode == 'tc_ASSIGNOP':
-                self.match('tc_ASSIGNOP')
-                self.parseExpression()
-            elif self.currentToken.TokenCode == 'tc_LBRACKET':
-                self.parseVariableRest()
-                self.match('tc_ASSIGNOP')
-                self.parseExpression()
-            elif self.currentToken.TokenCode == 'tc_LPAREN':
-                self.parseProcedureStatementRest()
-        elif self.currentToken.TokenCode == 'tc_BEGIN':
-            self.parseCompoundStatement()
-        elif self.currentToken.TokenCode == 'tc_IF':
-            self.match('tc_IF')
-            self.parseExpression()
-            self.match('tc_THEN')
-            self.parseStatement()
-            self.match('tc_ELSE')
-            self.parseStatement()
-        elif self.currentToken.TokenCode == 'tc_WHILE':
-            self.match('tc_WHILE')
-            self.parseExpression()
-            self.match('tc_DO')
-            self.parseStatement()
+            self.__match('tc_ID')
+            if self.__currentToken.TokenCode == 'tc_ASSIGNOP':
+                self.__match('tc_ASSIGNOP')
+                self.__Expression()
+                if self.__foundError: self.__recover()
+            elif self.__currentToken.TokenCode == 'tc_LBRACKET':
+                self.__VariableRest()
+                self.__match('tc_ASSIGNOP')
+                self.__Expression()
+                if self.__foundError: self.__recover()
+            elif self.__currentToken.TokenCode == 'tc_LPAREN':
+                self.__ProcedureStatementRest()
+        elif self.__currentToken.TokenCode == 'tc_BEGIN':
+            self.__CompoundStatement()
+            if self.__foundError: self.__recover()
+        elif self.__currentToken.TokenCode == 'tc_IF':
+            self.__match('tc_IF')
+            self.__Expression()
+            if self.__foundError: self.__recover()
+            self.__match('tc_THEN')
+            self.__Statement()
+            if self.__foundError: self.__recover()
+            self.__match('tc_ELSE')
+            self.__Statement()
+            if self.__foundError: self.__recover()
+        elif self.__currentToken.TokenCode == 'tc_WHILE':
+            self.__match('tc_WHILE')
+            self.__Expression()
+            if self.__foundError: self.__recover()
+            self.__match('tc_DO')
+            self.__Statement()
+            if self.__foundError: self.__recover()
         else:
             # Error - should be something above
             pass
 
-    def parseVariable(self):
+    def __Variable(self):
         # Not needed, is implemented in parseStatement, but kept here for completeness.
-        self.match('tc_ID')
-        self.parseVariableRest()
+        self.__match('tc_ID')
+        self.__VariableRest()
 
-    def parseVariableRest(self):
-        if self.currentToken.TokenCode == 'tc_LBRACKET':
-            self.match('tc_LBRACKET')
-            self.parseExpression()
-            self.match('tc_RBRACKET')
-            self.parseVariableRest()
+    def __VariableRest(self):
+        if self.__currentToken.TokenCode == 'tc_LBRACKET':
+            self.__match('tc_LBRACKET')
+            self.__Expression()
+            if self.__foundError: self.__recover()
+            self.__match('tc_RBRACKET')
+            self.__VariableRest()
 
-    def parseProcedureStatement(self):
+    def __ProcedureStatement(self):
         # Not needed, is implemented in parseStatement, but kept here for completeness.
-        self.match('tc_ID')
-        self.parseProcedureStatementRest()
+        self.__match('tc_ID')
+        self.__ProcedureStatementRest()
 
-    def parseProcedureStatementRest(self):
-        if self.currentToken.TokenCode == 'tc_LPAREN':
-            self.match('tc_LPAREN')
-            self.parseExpressionList()
-            self.match('tc_RPAREN')
-            self.parseProcedureStatementRest()
+    def __ProcedureStatementRest(self):
+        if self.__currentToken.TokenCode == 'tc_LPAREN':
+            self.__match('tc_LPAREN')
+            self.__ExpressionList()
+            if self.__foundError: self.__recover()
+            self.__match('tc_RPAREN')
+            self.__ProcedureStatementRest()
 
-    def parseExpressionList(self):
-        self.parseExpression()
-        self.parseExpressionListRest()
+    def __ExpressionList(self):
+        self.__Expression()
+        if self.__foundError: self.__recover()
+        self.__ExpressionListRest()
 
-    def parseExpressionListRest(self):
-        if self.currentToken.TokenCode == 'tc_COMMA':
-            self.match('tc_COMMA')
-            self.parseExpression()
-            self.parseExpressionListRest()
+    def __ExpressionListRest(self):
+        if self.__currentToken.TokenCode == 'tc_COMMA':
+            self.__match('tc_COMMA')
+            self.__Expression()
+            if self.__foundError: self.__recover()
+            self.__ExpressionListRest()
 
-    def parseExpression(self):
-        self.parseSimpleExpression()
-        self.parseExpressionRest()
+    def __Expression(self):
+        self.__SimpleExpression()
+        if self.__foundError: self.__recover()
+        self.__ExpressionRest()
 
-    def parseExpressionRest(self):
-        if self.currentToken.TokenCode == 'tc_RELOP':
-            self.match('tc_RELOP')
-            self.parseSimpleExpression()
+    def __ExpressionRest(self):
+        if self.__currentToken.TokenCode == 'tc_RELOP':
+            self.__match('tc_RELOP')
+            self.__SimpleExpression()
+            if self.__foundError: self.__recover()
 
-    def parseSimpleExpression(self):
-        if self.currentToken.TokenCode == 'tc_ADDOP':
-            self.match('tc_ADDOP')
-        self.parseTerm()
-        self.parseSimpleExpressionRest()
+    def __SimpleExpression(self):
+        if self.__currentToken.TokenCode == 'tc_ADDOP':
+            self.__match('tc_ADDOP')
+        self.__Term()
+        if self.__foundError: self.__recover()
+        self.__SimpleExpressionRest()
 
-    def parseSimpleExpressionRest(self):
-        if self.currentToken.TokenCode == 'tc_ADDOP':
-            self.match('tc_ADDOP')
-            self.parseTerm()
-            self.parseSimpleExpressionRest()
+    def __SimpleExpressionRest(self):
+        if self.__currentToken.TokenCode == 'tc_ADDOP':
+            self.__match('tc_ADDOP')
+            self.__Term()
+            if self.__foundError: self.__recover()
+            self.__SimpleExpressionRest()
 
-    def parseTerm(self):
-        self.parseFactor()
-        self.parseTermRest()
+    def __Term(self):
+        self.__Factor()
+        if self.__foundError: self.__recover()
+        self.__TermRest()
 
-    def parseTermRest(self):
-        if self.currentToken.TokenCode == 'tc_MULOP':
-            self.match('tc_MULOP')
-            self.parseFactor()
-            self.parseTermRest()
+    def __TermRest(self):
+        if self.__currentToken.TokenCode == 'tc_MULOP':
+            self.__match('tc_MULOP')
+            self.__Factor()
+            if self.__foundError: self.__recover()
+            self.__TermRest()
 
-    def parseFactor(self):
-        if self.currentToken.TokenCode == 'tc_LPAREN':
-            self.match('tc_LPAREN')
-            self.parseExpression()
-            self.match('tc_RPAREN')
-        elif self.currentToken.TokenCode == 'tc_NOT':
-            self.match('tc_NOT')
-            self.parseFactor()
-        elif self.currentToken.TokenCode == 'tc_NUMBER':
-            self.match('tc_NUMBER')
-        elif self.currentToken.TokenCode == 'tc_ID':
-            self.match('tc_ID')
-            if self.currentToken.TokenCode == 'tc_LPAREN':
-                self.match('tc_LPAREN')
-                self.parseExpressionList()
-                self.match('tc_RPAREN')
-            elif self.currentToken.TokenCode == 'tc_LBRACKET':
-                self.match('tc_LBRACKET')
-                self.parseExpression()
-                self.match('tc_RBRACKET')
-                self.parseVariableRest()
+    def __Factor(self):
+        if self.__currentToken.TokenCode == 'tc_LPAREN':
+            self.__match('tc_LPAREN')
+            self.__Expression()
+            if self.__foundError: self.__recover()
+            self.__match('tc_RPAREN')
+        elif self.__currentToken.TokenCode == 'tc_NOT':
+            self.__match('tc_NOT')
+            self.__Factor()
+            if self.__foundError: self.__recover()
+        elif self.__currentToken.TokenCode == 'tc_NUMBER':
+            self.__match('tc_NUMBER')
+        elif self.__currentToken.TokenCode == 'tc_ID':
+            self.__match('tc_ID')
+            if self.__currentToken.TokenCode == 'tc_LPAREN':
+                self.__match('tc_LPAREN')
+                self.__ExpressionList()
+                if self.__foundError: self.__recover()
+                self.__match('tc_RPAREN')
+            elif self.__currentToken.TokenCode == 'tc_LBRACKET':
+                self.__match('tc_LBRACKET')
+                self.__Expression()
+                if self.__foundError: self.__recover()
+                self.__match('tc_RBRACKET')
+                self.__VariableRest()
 
-    def parseSign(self):
+    def __Sign(self):
         # Not needed, is implemented in parseStatement, but kept here for completeness.
-        self.match('tc_ADDOP')
+        self.__match('tc_ADDOP')
 

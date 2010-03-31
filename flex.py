@@ -112,7 +112,7 @@ def t_newline(t):
     r'\n+'
     # Update the read lexpos counter and lineno count.
     global previousLexPosLineCount
-    previousLexPosLineCount = t.lexpos -1
+    previousLexPosLineCount = t.lexpos - 1
     t.lexer.lineno += len(t.value)
 
 
@@ -130,4 +130,5 @@ def t_error(t):
     t.DataType = 'dt_NONE'
     global previousLexPosLineCount
     t.columnno = t.lexpos - previousLexPosLineCount
+    t.lexer.skip(1)
     return t
