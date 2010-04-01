@@ -20,8 +20,6 @@ def main(*args):
     print '  -------------------------------'
     print '  Using input "%s"'%inputFile
     print '  -------------------------------'
-    print '   Ln\t|  Code'
-    print '  -------------------------------'
     parser = Parser(filename)
 
     # Start parsing!
@@ -34,7 +32,7 @@ def main(*args):
         pointer += 1
         line = fileHandler.readline()
         if not line: break
-        print '   %d\t|  %s'%(pointer,line),
+        print '%d\t%s'%(pointer,line),
         for error in parser.errors:
             if error.lineno == pointer:
                 error.pointPrint()
