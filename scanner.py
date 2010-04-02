@@ -10,7 +10,6 @@ from token import Token
 
 class Scanner:
     """ The scanner class has a lexer and can deliver tokens on request."""
-    num = 0
     def __init__(self,input,mod=flex):
         """ Initializes a scanner instance.
 
@@ -29,17 +28,13 @@ class Scanner:
             i -= 1
         return (token.lexpos - i) + 1
 
-
-
     def nextToken(self):
         """ Returns the next token in the input file from the lexer."""
         lexeme = self.lexer.token()
-
         if not lexeme:
             # If no token was returned, EOF reached, break loop.
             token = Token('tc_EOF',('','op_NONE'),'dt_NONE',self.lexer.lineno,0)
             return token
-
 
         TokenCode = lexeme.type
         try:
@@ -52,9 +47,6 @@ class Scanner:
         except:
             DataType = 'dt_NONE'
 
-
         token = Token(TokenCode, DataValue, DataType,lexeme.lineno,self._find_tok_column(lexeme))
-
-
         return token
 

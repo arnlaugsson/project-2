@@ -75,6 +75,7 @@ dataType = (
     'dt_NONE',
 )
 
+
 class Token:
     def __init__(self, type, dataValue, dataType, lineno, columnno = 0):
         self.TokenCode          = type

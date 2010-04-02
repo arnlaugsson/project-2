@@ -107,7 +107,7 @@ def t_tc_ID(t):
         t.DataType = 'dt_ID'
     return t
 
-
+    
 def t_newline(t):
     r'\n+'
     # Update the read lexpos counter and lineno count.
@@ -118,6 +118,14 @@ def t_newline(t):
 
 # Ignore white-spaces.
 t_ignore  = ' \t'
+"""
+tab = r'\t'
+
+@lex.TOKEN(tab)
+def t_tab(t):
+    global previousLexPosLineCount
+    previousLexPosLineCount = t.lexpos + 3
+"""    
 
 def t_COMMENT(t):
     # Ignore comments starting with '{' and ending with '}'.
