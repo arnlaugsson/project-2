@@ -8,6 +8,7 @@ import sys
 from scanner import Scanner
 from token import *
 import token
+import code
 from synchronizingSets import syncsets
 
 class Error:
@@ -25,8 +26,9 @@ class Error:
         print "\t"+" "*(self.columnno-2) + "^--- " + self.message
 
 class Parser:
-    def __init__(self,input):
+    def __init__(self,input,output):
         self.__scanner = Scanner(input)
+        self.__code = code(output)
         self.__currentToken = None
         self.__foundError = False
         self.__errorInFunction = ''
@@ -36,6 +38,9 @@ class Parser:
     def parse(self):
         self.__getToken()
         self.__Program()
+
+    def close(self):
+        self.__code.close()
 
     def __getToken(self):
         self.__currentToken = self.__scanner.nextToken()
@@ -358,5 +363,4 @@ class Parser:
             self.__match('tc_RPAREN')
         elif self.__currentToken.TokenCode == 'tc_LBRACKET':
             self.__ArrayReference()
-
 

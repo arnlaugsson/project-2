@@ -13,14 +13,19 @@ def main(*args):
 
     if len(sys.argv) > 1:
         inputFile = sys.argv[1]
+        if len(sys.argv) >2:
+            outputFile = sys.argv[2]
+        else:
+            outputFile = 'output.tac'
     else:
         inputFile = 'pas_syntax_ok'
     
     filename = 'input/'+inputFile
     print '  -------------------------------'
     print '  Using input "%s"'%inputFile
+    print '  Using output "%s"'%outputFile
     print '  -------------------------------'
-    parser = Parser(filename)
+    parser = Parser(filename,outputFile)
 
     # Start parsing!
     parser.parse()
@@ -39,7 +44,7 @@ def main(*args):
                 # With break only the first error in the line will be displayed
                 #break
 
-
+    parser.__close()
 
     print
     print '  -------------------------------'
@@ -47,7 +52,7 @@ def main(*args):
     if len(parser.errors) == 0:
         print '  No errors were detected.'
     else:
-        print '  %d errors were encoutered.'%len(parser.errors)
+        print '  %d errors were encountered.'%len(parser.errors)
     print
 
 if __name__ == '__main__':
