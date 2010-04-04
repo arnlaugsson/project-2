@@ -6,16 +6,21 @@
 # -*- coding: utf-8 -*-
 import sys
 from ply.lex import lex
-from parse import Parser
+from parser import Parser
 
 def main(*args):
     # Generate our parser, with the given input
 
     if len(sys.argv) > 1:
         inputFile = sys.argv[1]
+        if len(sys.argv) > 2:
+            option = True
+        else:
+            option = False
     else:
         inputFile = 'pas_syntax_ok'
-    
+        option = False
+
     filename = 'input/'+inputFile
     print '  -------------------------------'
     print '  Using input "%s"'%inputFile
@@ -23,31 +28,31 @@ def main(*args):
     parser = Parser(filename)
 
     # Start parsing!
-    parser.parse()
+    parser.parse(option)
 
     fileHandler = open(filename)
     pointer = 0
 
-    while True:
-        pointer += 1
-        line = fileHandler.readline()
-        if not line: break
-        print '%d\t%s'%(pointer,line),
-        for error in parser.errors:
-            if error.lineno == pointer:
-                error.pointPrint()
-                # With break only the first error in the line will be displayed
-                #break
+    if not option:
+        while True:
+            pointer += 1
+            line = fileHandler.readline()
+            if not line: break
+            if pointer < 10: print ' %d:\t%s'%(pointer,line),
+            else: print '%d:\t%s'%(pointer,line),
+            for error in parser.errors:
+                if error.lineno == pointer:
+                    print error.pointPrint()
+                    # With break only the first error in the line will be displayed
+                    #break
 
-
-
-    print
-    print '  -------------------------------'
+        print
+        print '  -------------------------------'
 
     if len(parser.errors) == 0:
         print '  No errors were detected.'
     else:
-        print '  %d errors were encoutered.'%len(parser.errors)
+        print '  %d errors were encountered.'%len(parser.errors)
     print
 
 if __name__ == '__main__':

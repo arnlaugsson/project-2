@@ -1,11 +1,11 @@
 syncsets = {
     # TODO: Add / Edit / Delete from this list as needed, try out!!!
     '__Program'                 :['tc_EOF'],
-    '__ProgramDefinition'       :['tc_SEMICOL'],
+    '__ProgramDefinition'       :['tc_SEMICOL','tc_VAR','tc_BEGIN'],
     '__IdentifierList'          :['tc_RPAREN','tc_COLON','tc_SEMICOL','tc_REAL','tc_INTEGER'],
     '__IdentifierListRest'      :[],
     '__IdentifierListAndType'   :['tc_SEMICOL'],
-    '__Declarations'            :['tc_FUNCTION','tc_PROCEDURE','tc_BEGIN'],
+    '__Declarations'            :['tc_FUNCTION','tc_PROCEDURE','tc_BEGIN','tc_SEMICOL'],
     '__Type'                    :['tc_SEMICOL','tc_VAR'],
     '__TypeArray'               :['tc_SEMICOL','tc_REAL','tc_INTEGER'],
     '__StandardType'            :['tc_SEMICOL','tc_VAR','tc_FUNCTION','tc_PROCEDURE'],
@@ -30,5 +30,5 @@ syncsets = {
     '__SimpleExpression'        :['tc_RELOP'],
     '__Term'                    :['tc_ADDOP'],
     '__Factor'                  :['tc_DO','tc_SEMICOL'],
-    '__FactorRest'              :['tc_MULOP','tc_ADDOP']
+    '__FactorRest'              :['tc_MULOP','tc_ADDOP','tc_SEMICOL']
 }
