@@ -38,22 +38,26 @@ def main(*args):
             pointer += 1
             line = fileHandler.readline()
             if not line: break
-            if pointer < 10: print ' %d:\t%s'%(pointer,line),
-            else: print '%d:\t%s'%(pointer,line),
+            lineErrors = []
             for error in parser.errors:
                 if error.lineno == pointer:
-                    print error.pointPrint()
-                    # With break only the first error in the line will be displayed
-                    #break
+                    lineErrors.append(error)
 
-        print
-        print '  -------------------------------'
+            if len(lineErrors) > 0:
+                if pointer < 10: print ' %d:\t%s'%(pointer,line),
+                else: print '%d:\t%s'%(pointer,line),
+                for error in lineErrors:
+                    print error.pointPrint()
+
+
 
     if len(parser.errors) == 0:
         print '  No errors were detected.'
+        parser.symbolTable.__repr__()
     else:
+        print '  -------------------------------'
         print '  %d errors were encountered.'%len(parser.errors)
-    print
+
 
 if __name__ == '__main__':
 	sys.exit(main(*sys.argv))

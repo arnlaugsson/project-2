@@ -7,6 +7,7 @@
 import sys
 from scanner import Scanner
 from token import *
+from symbolTable import *
 import token
 from synchronizingSets import syncsets
 
@@ -14,6 +15,7 @@ from synchronizingSets import syncsets
 ################################################
 # Used to keep track of parsing depth
 ################################################
+import symbolTable
 depth = 0
 def trackDepth(func):
     def wrapper(classInstance):
@@ -52,6 +54,7 @@ class Parser:
         self.printTree = False
         self.errors = []
         self.skipped = []
+        self.symbolTable = symbolTable.SymbolTable()
 
     def parse(self,bool=False):
         if bool: self.printTree = True
@@ -61,6 +64,31 @@ class Parser:
     def __getToken(self):
         self.__currentToken = self.__scanner.nextToken()
         if not self.__currentToken: return False
+
+        if self.__currentToken.TokenCode == 'tc_ID':
+            # Check if token exists in SymbolTable
+            entry = self.symbolTable.lookup(self.__currentToken.DataValue[0].upper())
+
+            if entry == -1 :  # -1 means not found in table
+                # Entry does not exist -> add it!
+                num = self.symbolTable.insert(self.__currentToken.DataValue[0].upper(),self.__currentToken.TokenCode)
+
+                # Associate the token with the entry
+                self.__currentToken.setSymTabEntry(num)
+            else:
+                # Token exists:
+                # Associate the token with the entry
+                self.__currentToken.setSymTabEntry(entry)
+
+        elif self.__currentToken.TokenCode == 'tc_NUMBER':
+            # Same as for entry ..
+            entry = self.symbolTable.lookup(self.__currentToken.DataValue[0].upper())
+            if entry == -1:
+                num = self.symbolTable.insert(self.__currentToken.DataValue[0].upper(),self.__currentToken.TokenCode)
+                self.__currentToken.setSymTabEntry(num)
+            else:
+                self.__currentToken.setSymTabEntry(entry)
+
         return True
 
     def __callersname(self):
@@ -219,6 +247,9 @@ class Parser:
             self.__match('tc_INTEGER')
         elif self.__currentToken.TokenCode == 'tc_REAL':
             self.__match('tc_REAL')
+        else:
+            if not self.__currentToken.TokenCode == 'tc_SEMICOL':
+                self.__match('tc_INTEGER')
 
     @trackDepth
     def __SubprogramDeclarations(self):
@@ -299,11 +330,7 @@ class Parser:
 
     @trackDepth
     def __Statement(self):
-        if self.__currentToken.TokenCode == 'tc_ID':
-            self.__match('tc_ID')
-            self.__IdOrProcedureStatement()
-
-        elif self.__currentToken.TokenCode == 'tc_BEGIN':
+        if self.__currentToken.TokenCode == 'tc_BEGIN':
             self.__CompoundStatement()
 
         elif self.__currentToken.TokenCode == 'tc_IF':
@@ -312,7 +339,9 @@ class Parser:
         elif self.__currentToken.TokenCode == 'tc_WHILE':
             self.__WhileStatement()
         else:
-            self.__missingSingle('a statement')
+            self.__match('tc_ID')
+            self.__IdOrProcedureStatement()
+
 
 
     @trackDepth
@@ -348,10 +377,6 @@ class Parser:
             self.__missingSingle('tc_THEN')
         self.__Statement()
         self.__match('tc_ELSE')
-        #if self.__currentToken.TokenCode == 'tc_ELSE':
-        #    self.__match('tc_ELSE')
-        #else:
-        #    self.__missingSingle('tc_ELSE')
         self.__Statement()
 
     @trackDepth
