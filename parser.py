@@ -347,10 +347,11 @@ class Parser:
         else:
             self.__missingSingle('tc_THEN')
         self.__Statement()
-        if self.__currentToken.TokenCode == 'tc_ELSE':
-            self.__match('tc_ELSE')
-        else:
-            self.__missingSingle('tc_ELSE')
+        self.__match('tc_ELSE')
+        #if self.__currentToken.TokenCode == 'tc_ELSE':
+        #    self.__match('tc_ELSE')
+        #else:
+        #    self.__missingSingle('tc_ELSE')
         self.__Statement()
 
     @trackDepth

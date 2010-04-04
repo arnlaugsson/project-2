@@ -4,8 +4,8 @@ Var x : integer
 Var y : real;
 
 function ftest(x:integer) : real;
-var t : array[1..10 of real;
-var i  integer;
+var t : array[1..10] of real;
+var i integer;
 begin
     i := 0;
     t[1] := -2.0*y;

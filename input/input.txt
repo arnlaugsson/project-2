@@ -3,13 +3,13 @@ Program Test(input, output);
 Var i, j : integer;
 Var result : real;
 begin
-	i := 0;
-	j := 1;
-	if (i < j) then
-	    result = 12.34
+    i := 0;
+    j := 1;
+    if (i < j) then
+        result := 12.34
 	else
-		result = 12.34E7;
-		i := i + j;
-	{!}
+        result := 12.34E7;
+        i := i + j
+    {!}
 end
 .
